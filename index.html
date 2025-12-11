@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ခြေရာ - Online Shop Demo</title>
+<style>
+body{font-family:'Segoe UI', Roboto, 'Noto Sans Myanmar', sans-serif;margin:0;background:#f5f7fb;color:#222}
+header{background:#0b75c9;color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+.nav button{background:transparent;border:0;color:#fff;cursor:pointer;font-size:14px;margin-left:8px}
+main{display:flex;gap:20px;padding:18px}
+.sidebar{width:220px}
+.products{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+.product{background:#fff;border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.product img{height:140px;object-fit:cover;border-radius:6px}
+.price{font-weight:700}
+.btn{padding:8px 10px;border-radius:8px;border:0;cursor:pointer}
+.btn-primary{background:#0b75c9;color:#fff}
+.admin-form input[type='text'],.admin-form input[type='number']{padding:8px;border-radius:6px;border:1px solid #ddd;width:100%}
+.preview-img{width:100%;height:120px;object-fit:cover;border-radius:6px;display:none;margin-top:8px}
+.card{background:#fff;border-radius:8px;padding:12px;box-shadow:0 1px 4px rgba(12,20,40,0.06);margin-bottom:12px}
+</style>
+</head>
+<body>
+<header>
+<div class="brand">🔷 ခြေရာ - အွန်လိုင်းဆိုင် (Demo)</div>
+<div class="nav">
+<button id="messagesBtn">မက်ဆေ့ချ်</button>
+<button id="adminToggleBtn">Admin ဝင်မည်</button>
+<button id="cartBtn">ကတ် (<span id="cartCount">0</span>)</button>
+</div>
+</header>
+<main>
+<aside class="sidebar">
+<div class="card">
+<div class="small">ရှာရန်</div>
+<input id="searchInput" placeholder="ပစ္စည်းအမည်၊ အမျိုးအစား">
+</div>
+<div class="card">
+<div style="font-weight:700">စျေးဝယ်ကတ်</div>
+<div class="small">စုစုပေါင်း: <span id="cartTotalPrice">0</span> ကျပ်</div>
+<button id="checkoutBtn" class="btn btn-primary">ဘတ်ချ်ချ်</button>
+</div>
+<div class="card">
+<div style="font-weight:700">Order History</div>
+<div id="orderList" class="small">မှတ်တမ်းမရှိသေးပါ</div>
+</div>
+</aside>
+<section class="products" id="products"></section>
+<aside style="width:360px;max-width:100%">
+<div class="card admin" id="adminPanel" style="display:none">
+<div style="font-weight:700">Admin - ပစ္စည်း ထည့်မည်</div>
+<form id="adminForm" class="admin-form">
+<input id="pName" type="text" placeholder="ပစ္စည်းအမည်" required>
+<input id="pPrice" type="number" placeholder="ဈေးနှုန်း" required>
+<input id="pCategory" type="text" placeholder="အမျိုးအစား">
+<input id="pImage" type="file" accept="image/*">
+<img id="pPreview" class="preview-img">
+<div style="margin-top:8px;display:flex;gap:8px">
+<button type="submit" class="btn btn-primary">ထည့်မည်</button>
+<button type="button" id="adminLogout" class="btn">Admin ထွက်မည်</button>
+</div>
+</form>
+</div>
+</aside>
+</main>
+<script>
+const ADMIN_PASSWORD = '1234';
+let products = JSON.parse(localStorage.getItem('demo_products')||'[]');
+let cart = JSON.parse(localStorage.getItem('demo_cart')||'[]');
+let orders = JSON.parse(localStorage.getItem('demo_orders')||'[]');
+
+const productsEl = document.getElementById('products');
+const cartCount = document.getElementById('cartCount');
+const cartTotalPrice = document.getElementById('cartTotalPrice');
+const adminPanel = document.getElementById('adminPanel');
+const adminToggleBtn = document.getElementById('adminToggleBtn');
+const adminForm = document.getElementById('adminForm');
+const pPreview = document.getElementById('pPreview');
+const pImage = document.getElementById('pImage');
+const searchInput = document.getElementById('searchInput');
+const orderList = document.getElementById('orderList');
+const checkoutBtn = document.getElementById('checkoutBtn');
+
+function saveProducts(){localStorage.setItem('demo_products',JSON.stringify(products));}
+function saveCart(){localStorage.setItem('demo_cart',JSON.stringify(cart)); renderCartSummary();}
+function saveOrders(){localStorage.setItem('demo_orders',JSON.stringify(orders)); renderOrders();}
+
+function formatPrice(n){return Number(n).toLocaleString()+' Ks';}
+
+function renderCartSummary(){
+ cartCount.innerText = cart.reduce((s,i)=>s+i.qty,0);
+ const total = cart.reduce((s,i)=>s+i.price*i.qty,0);
+ cartTotalPrice.innerText = formatPrice(total);
+}
+
+function renderOrders(){
+ if(orders.length===0){orderList.innerText='မှတ်တမ်းမရှိသေးပါ';return;}
+ orderList.innerHTML='';
+ orders.forEach(o=>{
+  const div=document.createElement('div');
+  div.innerHTML=`${o.name} - ${formatPrice(o.price)} x${o.qty}`;
+  orderList.appendChild(div);
+ });
+}
+
+function renderProducts(){
+ const q=searchInput.value.toLowerCase();
+ productsEl.innerHTML='';
+ products.filter(p=>!q||p.name.toLowerCase().includes(q)||p.category.toLowerCase().includes(q)).forEach((p,idx)=>{
+  const el=document.createElement('div'); el.className='product card';
+  el.innerHTML=`<img src='${p.image||''}'><div style='font-weight:700'>${p.name}</div><div class='price'>${formatPrice(p.price)}</div><button class='btn btn-primary' data-add='${idx}'>ထည့်မည်</button>`;
+  productsEl.appendChild(el);
+ });
+}
+
+productsEl.addEventListener('click',e=>{
+ if(e.target.dataset.add){
+  const idx=Number(e.target.dataset.add); const p=products[idx];
+  const cartItem=cart.find(c=>c.name===p.name);
+  if(cartItem) cartItem.qty++; else cart.push({...p,qty:1});
+  saveCart();
+ }
+});
+
+pImage.addEventListener('change',()=>{
+ const f=pImage.files[0]; if(!f) return;
+ const reader=new FileReader();
+ reader.onload=e=>{pPreview.src=e.target.result;pPreview.style.display='block';};
+ reader.readAsDataURL(f);
+});
+
+adminForm.addEventListener('submit',e=>{
+ e.preventDefault();
+ const newP={
+  name:document.getElementById('pName').value,
+  price:Number(document.getElementById('pPrice').value),
+  category:document.getElementById('pCategory').value,
+  image:pPreview.src
+ };
+ products.unshift(newP); saveProducts(); renderProducts(); adminForm.reset(); pPreview.style.display='none';
+ alert('ပစ္စည်းထည့်ပြီးပါပြီ');
+});
+
+adminToggleBtn.addEventListener('click',()=>{
+ const pass=prompt('Admin Password ရိုက်ထည့်ပါ');
+ if(pass===ADMIN_PASSWORD){adminPanel.style.display='block'; adminToggleBtn.innerText='Admin ဝင်ပြီးပြီ';}
+ else alert('Password မမှန်ပါ');
+});
+
+document.getElementById('adminLogout').addEventListener('click',()=>{adminPanel.style.display='none'; adminToggleBtn.innerText='Admin ဝင်မည်';});
+
+checkoutBtn.addEventListener('click',()=>{
+ if(cart.length===0){alert('Cart အလွတ်ပါ'); return;}
+ cart.forEach(c=>orders.push({...c}));
+ cart=[]; saveCart(); saveOrders();
+ alert('Order History မှာ သိမ်းပြီးပါပြီ');
+});
+
+searchInput.addEventListener('input',renderProducts);
+renderProducts(); renderCartSummary(); renderOrders();
+</script>
+</body>
+</html>
